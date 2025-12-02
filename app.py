@@ -30,6 +30,7 @@ lista_monedas = df['moneda'].unique()
 moneda_seleccionada = st.sidebar.selectbox("1. Elige una moneda:", lista_monedas)
 
 # Filtro 2: Rango de Fechas (CORREGIDO)
+# Definimos las fechas mínima y máxima permitidas según los datos
 min_date = df['fecha'].min().date()
 max_date = df['fecha'].max().date()
 
@@ -40,53 +41,39 @@ rango_fechas = st.sidebar.date_input(
     max_value=max_date
 )
 
-# VALIDACIÓN: Solo filtramos si hay 2 fechas seleccionadas
+# --- LÓGICA DE FILTRADO ---
+# Aquí validamos que el usuario haya elegido las dos fechas
 if len(rango_fechas) == 2:
     start_date, end_date = rango_fechas
     
-    # Aplicamos filtro
+    # Aplicamos filtro maestro: Moneda Y Fechas
     df_filtrado = df[
         (df['moneda'] == moneda_seleccionada) & 
         (df['fecha'].dt.date >= start_date) & 
         (df['fecha'].dt.date <= end_date)
     ]
 else:
-    # Si el usuario está seleccionando y solo lleva 1 fecha, mostramos un aviso
-    st.info("Selecciona la fecha final para actualizar los gráficos.")
-    st.stop() # Detiene la ejecución hasta que se complete el rango
-    
-# VALIDACIÓN: Solo filtramos si hay 2 fechas seleccionadas
-if len(rango_fechas) == 2:
-    start_date, end_date = rango_fechas
-    
-    # Aplicamos filtro
-    df_filtrado = df[
-        (df['moneda'] == moneda_seleccionada) & 
-        (df['fecha'].dt.date >= start_date) & 
-        (df['fecha'].dt.date <= end_date)
-    ]
-else:
-    # Si el usuario está seleccionando y solo lleva 1 fecha, mostramos un aviso
-    st.info("Selecciona la fecha final para actualizar los gráficos.")
-    st.stop() # Detiene la ejecución hasta que se complete el rango
+    # Si falta una fecha, mostramos aviso y DETENEMOS la ejecución
+    st.info("👋 Por favor, selecciona la fecha final en el calendario para actualizar los gráficos.")
+    st.stop() 
 
-# Aplicamos AMBOS filtros
-# Filtramos por moneda Y por fechas
-df_filtrado = df[
-    (df['moneda'] == moneda_seleccionada) & 
-    (df['fecha'].dt.date >= start_date) & 
-    (df['fecha'].dt.date <= end_date)
-]
-# Filtramos el DataFrame principal según la elección del usuario
-df_filtrado = df[df['moneda'] == moneda_seleccionada]
 
 # --- SECCIÓN DE MÉTRICAS (KPIs) ---
-ultimo_dato = df_filtrado.iloc[-1]
-anteultimo_dato = df_filtrado.iloc[-2]
+# Verificamos que queden datos después del filtro
+if df_filtrado.empty:
+    st.warning("No hay datos para el rango seleccionado.")
+    st.stop()
 
-# Calculamos variaciones
-variacion_precio = ultimo_dato['precio_usd'] - anteultimo_dato['precio_usd']
-variacion_modelo = ultimo_dato['modelo_mineria'] - anteultimo_dato['modelo_mineria'] # <--- NUEVO
+ultimo_dato = df_filtrado.iloc[-1]
+
+# Intentamos calcular la variación con el dato anterior (si existe)
+if len(df_filtrado) > 1:
+    anteultimo_dato = df_filtrado.iloc[-2]
+    variacion_precio = ultimo_dato['precio_usd'] - anteultimo_dato['precio_usd']
+    variacion_modelo = ultimo_dato['modelo_mineria'] - anteultimo_dato['modelo_mineria']
+else:
+    variacion_precio = 0
+    variacion_modelo = 0
 
 col1, col2, col3 = st.columns(3)
 
@@ -95,19 +82,17 @@ with col1:
 with col2:
     st.metric("Volatilidad (Riesgo)", f"{ultimo_dato['volatilidad']:.4f}")
 with col3:
-    # Agregamos el tercer parámetro para que salga la flechita
     st.metric("Predicción Modelo", f"${ultimo_dato['modelo_mineria']:.2f}", f"{variacion_modelo:.2f}")
 
 # --- GRÁFICO PRINCIPAL: SERIE TEMPORAL ---
 st.subheader(f"📈 Evolución de Precio vs Modelo ({moneda_seleccionada})")
 
-# Usamos Plotly para gráficos interactivos (haces zoom, pasas el mouse, etc.)
 fig_precio = px.line(df_filtrado, x='fecha', y=['precio_usd', 'modelo_mineria'],
                      labels={'value': 'Precio (USD)', 'fecha': 'Fecha', 'variable': 'Métrica'},
                      title="Comparación: Precio Real vs Suavizado Exponencial")
 st.plotly_chart(fig_precio, use_container_width=True)
 
-# --- GRÁFICO SECUNDARIO: VOLUMEN O TENDENCIA ---
+# --- GRÁFICOS SECUNDARIOS ---
 col_izq, col_der = st.columns(2)
 
 with col_izq:
@@ -117,19 +102,18 @@ with col_izq:
 
 with col_der:
     st.subheader("📉 Tendencia Semanal")
-    # Graficamos la media móvil que calculamos en la Etapa 3
     fig_tendencia = px.line(df_filtrado, x='fecha', y='tendencia_semanal', color_discrete_sequence=['green'])
     st.plotly_chart(fig_tendencia, use_container_width=True)
 
-# --- CONCLUSIONES (Requisito del Examen) ---
+# --- CONCLUSIONES (HALLAZGOS) ---
 st.markdown("---")
 st.subheader("📝 Hallazgos y Conclusiones")
 
-# Calculamos diferencia
+# Calculamos diferencia para el texto automático
 diferencia = ultimo_dato['precio_usd'] - ultimo_dato['tendencia_mensual']
 
 if diferencia > 0:
-    # Caso Positivo (Verde)
+    # Caso Positivo
     with st.container(border=True):
         st.success("✅ **Tendencia ALCISTA (Bullish)**")
         st.write(f"El precio actual de **{moneda_seleccionada}** es: **${ultimo_dato['precio_usd']:.2f}**")
@@ -137,11 +121,9 @@ if diferencia > 0:
         st.info("💡 Interpretación: El mercado muestra optimismo. El precio está por encima de la tendencia.")
 
 else:
-    # Caso Negativo (Amarillo/Rojo)
+    # Caso Negativo
     with st.container(border=True):
         st.warning("🔻 **Tendencia BAJISTA (Bearish)**")
         st.write(f"El precio actual de **{moneda_seleccionada}** es: **${ultimo_dato['precio_usd']:.2f}**")
         st.write(f"Ha caído por debajo de su promedio mensual de: **${ultimo_dato['tendencia_mensual']:.2f}**")
-
         st.error("⚠️ Interpretación: El mercado está corrigiendo o bajando. Precaución.")
-
