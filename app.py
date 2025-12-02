@@ -29,17 +29,31 @@ st.sidebar.header("Filtros")
 lista_monedas = df['moneda'].unique()
 moneda_seleccionada = st.sidebar.selectbox("1. Elige una moneda:", lista_monedas)
 
-# Filtro 2: Rango de Fechas (ESTE ES EL QUE FALTABA)
-# Convertimos fechas a datetime.date para el slider
+# Filtro 2: Rango de Fechas (CORREGIDO)
 min_date = df['fecha'].min().date()
 max_date = df['fecha'].max().date()
 
-start_date, end_date = st.sidebar.date_input(
+rango_fechas = st.sidebar.date_input(
     "2. Selecciona rango de fechas:",
-    value=(min_date, max_date), # Valor por defecto
+    value=(min_date, max_date),
     min_value=min_date,
     max_value=max_date
 )
+
+# VALIDACIÓN: Solo filtramos si hay 2 fechas seleccionadas
+if len(rango_fechas) == 2:
+    start_date, end_date = rango_fechas
+    
+    # Aplicamos filtro
+    df_filtrado = df[
+        (df['moneda'] == moneda_seleccionada) & 
+        (df['fecha'].dt.date >= start_date) & 
+        (df['fecha'].dt.date <= end_date)
+    ]
+else:
+    # Si el usuario está seleccionando y solo lleva 1 fecha, mostramos un aviso
+    st.info("Selecciona la fecha final para actualizar los gráficos.")
+    st.stop() # Detiene la ejecución hasta que se complete el rango
 
 # Aplicamos AMBOS filtros
 # Filtramos por moneda Y por fechas
@@ -113,4 +127,5 @@ else:
         st.warning("🔻 **Tendencia BAJISTA (Bearish)**")
         st.write(f"El precio actual de **{moneda_seleccionada}** es: **${ultimo_dato['precio_usd']:.2f}**")
         st.write(f"Ha caído por debajo de su promedio mensual de: **${ultimo_dato['tendencia_mensual']:.2f}**")
+
         st.error("⚠️ Interpretación: El mercado está corrigiendo o bajando. Precaución.")
