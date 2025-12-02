@@ -57,11 +57,25 @@ col_izq, col_der = st.columns(2)
 col_izq.plotly_chart(px.bar(df_filtrado, x='fecha', y='volumen', title="Volumen"), use_container_width=True)
 col_der.plotly_chart(px.line(df_filtrado, x='fecha', y='tendencia_semanal', title="Tendencia Semanal"), use_container_width=True)
 
-# --- HALLAZGOS ---
+# --- HALLAZGOS Y CONCLUSIONES (DISEÑO) ---
 st.markdown("---")
+st.subheader("📝 Hallazgos y Conclusiones")
+
+# Calculamos diferencia para el texto automático
 diferencia = ultimo_dato['precio_usd'] - ultimo_dato['tendencia_mensual']
 
 if diferencia > 0:
-    st.success(f"✅ **Tendencia ALCISTA**: El precio (${ultimo_dato['precio_usd']:.2f}) supera el promedio mensual.")
+    # Caso Positivo (Verde) - Diseño con contenedor y espacios
+    with st.container(border=True):
+        st.success("✅ **Tendencia ALCISTA (Bullish)**")
+        st.write(f"El precio actual de **{moneda_seleccionada}** es: **${ultimo_dato['precio_usd']:.2f}**")
+        st.write(f"Supera su promedio mensual de: **${ultimo_dato['tendencia_mensual']:.2f}**")
+        st.info("💡 Interpretación: El mercado muestra optimismo. El precio está por encima de la tendencia.")
+
 else:
-    st.warning(f"🔻 **Tendencia BAJISTA**: El precio (${ultimo_dato['precio_usd']:.2f}) está bajo el promedio mensual.")
+    # Caso Negativo (Amarillo/Rojo) - Diseño con contenedor y espacios
+    with st.container(border=True):
+        st.warning("🔻 **Tendencia BAJISTA (Bearish)**")
+        st.write(f"El precio actual de **{moneda_seleccionada}** es: **${ultimo_dato['precio_usd']:.2f}**")
+        st.write(f"Ha caído por debajo de su promedio mensual de: **${ultimo_dato['tendencia_mensual']:.2f}**")
+        st.error("⚠️ Interpretación: El mercado está corrigiendo o bajando. Precaución.")
