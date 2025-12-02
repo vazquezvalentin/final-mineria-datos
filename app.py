@@ -54,6 +54,21 @@ else:
     # Si el usuario está seleccionando y solo lleva 1 fecha, mostramos un aviso
     st.info("Selecciona la fecha final para actualizar los gráficos.")
     st.stop() # Detiene la ejecución hasta que se complete el rango
+    
+# VALIDACIÓN: Solo filtramos si hay 2 fechas seleccionadas
+if len(rango_fechas) == 2:
+    start_date, end_date = rango_fechas
+    
+    # Aplicamos filtro
+    df_filtrado = df[
+        (df['moneda'] == moneda_seleccionada) & 
+        (df['fecha'].dt.date >= start_date) & 
+        (df['fecha'].dt.date <= end_date)
+    ]
+else:
+    # Si el usuario está seleccionando y solo lleva 1 fecha, mostramos un aviso
+    st.info("Selecciona la fecha final para actualizar los gráficos.")
+    st.stop() # Detiene la ejecución hasta que se complete el rango
 
 # Aplicamos AMBOS filtros
 # Filtramos por moneda Y por fechas
@@ -129,3 +144,4 @@ else:
         st.write(f"Ha caído por debajo de su promedio mensual de: **${ultimo_dato['tendencia_mensual']:.2f}**")
 
         st.error("⚠️ Interpretación: El mercado está corrigiendo o bajando. Precaución.")
+
